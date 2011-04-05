@@ -1,0 +1,9 @@
+5 0
+play-tennis outlook temperature humidity wind
+bdddd
+0 sunny    cool high   weak
+1 sunny    cool normal weak
+1 overcast hot  high   strong
+1 rain     mild normal weak
+0 rain     mild normal strong
+
