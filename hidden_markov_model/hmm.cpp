@@ -471,6 +471,48 @@ void Model::ComputeAlpha(int *seq, int seqLength)
   // in the eta array.
   // The eta array is an array of length seqLength. eta[t] is the normalizer
   // at time t. t goes from 0 to seqLegnth-1.
+
+
+    //caculate eta[0]
+    eta[0] = 0;
+    for (int k=0; k < N; k++) {
+        eta[0] += I[k] * B[seq[0]][k];
+    }
+
+    eta[0] = 1/eta[0];
+
+    //caculate the initial alpha_0
+    for (int i=0; i < N; i++) {
+        alpha[0][i] = eta[0] * I[i] * B[seq[0]][i];
+    }
+
+    for (int t=1; t < seqLength; t++) {
+
+        //aculate eta[t]
+        eta[t] = 0;
+
+        for (int k=0; k < N; k++) {
+            double aj_sum = 0;
+
+            for (int j=0; j < N; j++) {
+                aj_sum += alpha[t-1][j] * A[j][k];
+            }
+
+            eta[t] += B[seq[t]][k] * aj_sum;
+        }
+
+        eta[t] = 1 / eta[t];
+
+        for (int i=0; i < N; i++) {
+
+            double aj_sum = 0;
+            for (int j=0; j < N; j++) {
+                aj_sum += alpha[t-1][j] * A[j][i];
+            }
+
+            alpha[t][i] = eta[t] * B[seq[t]][i] * aj_sum;
+        }
+    }
 }
 
 void Model::ComputeBeta(int *seq, int seqLength)
@@ -491,12 +533,31 @@ void Model::ComputeBeta(int *seq, int seqLength)
 
   //======= insert your code for computing the normalized beta values
   // Store the normalized beta values in the beta array.
+  
+    //beta_T =1
+    for (int i=0; i < N; i++) {
+        beta[seqLength-1][i] = 1;
+    }
+
+    for (int t=seqLength-2; t >= 0; t--) {
+
+        for (int i=0; i < N; i++) {
+
+            double bj_sum = 0;
+
+            for (int j=0; j < N; j++) {
+                bj_sum += beta[t+1][j] * A[i][j] * B[seq[t+1]][j];
+            }
+
+            beta[t][i] = eta[t+1] * bj_sum;
+        }
+    }
 }
 
 
 void Model::AccumulateCounts(int *seq, int seqLength)
 {
-    vector<vector<double> > gamma;;
+    vector<vector<double> > gamma;
 
     gamma.resize(seqLength);
     for(int t=0;t<seqLength;t++) {
@@ -505,15 +566,51 @@ void Model::AccumulateCounts(int *seq, int seqLength)
 
   // ========= Insert your code here for computing the gamma's based on
   // the alpha's and beta's
+    for (int t=0; t < seqLength; t++) {
 
+        double ab_j_sum = 0;
+        for (int j=0; j < N; j++) {
+            ab_j_sum += alpha[t][j] * beta[t][j];
+        }
+
+        for (int i=0; i < N; i++) {
+            gamma[t][i] = alpha[t][i] * beta[t][i] / ab_j_sum;
+        }
+    }
 
   // ========= Insert your code here for counting for initial state distribution
   // use ICounter and INorm.
+    INorm = 0;
 
+    for (int i=0; i < N; i++) {
+        ICounter[i] = gamma[0][i];
+        INorm += ICounter[i];
+    }
 
   // ========= Insert your code here for counting for output probabilities
   // use BCounter and BNorm.
+    for (int i=0; i < N; i++) {
 
+        BNorm[i] = 0;
+        double gt_sum = 0;
+
+        for (int t=0; t < seqLength; t++) {
+            gt_sum += gamma[t][i];
+        }
+
+        for (int k=0; k < SYMNUM; k++) {
+           double gkt_sum = 0; 
+
+           for (int t=0; t < seqLength; t++) {
+               if (seq[t] == k) {
+                   gkt_sum += gamma[t][i];
+               }
+           }
+
+           BCounter[k][i] = gkt_sum / gt_sum;
+           BNorm[i] += BCounter[k][i];
+        }
+    }
 
   // ========= Insert your code here for computing the xi's and counting
   //         for state transition probabilities
@@ -536,6 +633,50 @@ void Model::AccumulateCounts(int *seq, int seqLength)
 
   // ========================================
 
+    //precompute xi
+    vector<vector<vector<double> > > xi;
+
+    xi.resize(seqLength);
+    for(int t=0;t<seqLength;t++) {
+        xi[t].resize(N);
+
+        for (int i=0; i < N; i++) {
+            xi[t][i].resize(N);
+        }
+    }
+
+    for (int t=0; t < seqLength -1 ; t++) {
+        for (int i=0; i < N; i++) {
+            for (int j=0; j < N; j++) {
+                xi[t][i][j] = gamma[t][i] * A[i][j] * B[seq[t+1]][j]
+                        * eta[t+1] * beta[t+1][j] / beta[t][i];
+            }
+        }
+    }
+
+    //compute ACounter ANorm
+    for (int i=0; i < N; i++) {
+
+        ANorm[i] = 0;
+        double xijt_sum = 0;
+
+        for (int t=0; t < seqLength -1; t++) {
+            for (int j=0; j < N; j++) {
+                xijt_sum += xi[t][i][j];
+            }
+        }
+
+        for (int j=0; j < N; j++) {
+            double xit_sum = 0;
+
+            for (int t=0; t < seqLength -1; t++) {
+                xit_sum += xi[t][i][j];
+            }
+
+            ACounter[i][j] = xit_sum / xijt_sum;
+            ANorm[i] += ACounter[i][j];
+        }
+    }
 }
 
 
@@ -604,12 +745,12 @@ double Model::UpdateHMM(int *data, int seqLength)
     PrintOutputMatrix();
 
     ComputeAlpha(data, seqLength);
-    // cout << "Alpha\n";
-    // PrintMatrix(alpha, seqLength);
+    cout << "Alpha\n";
+    PrintMatrix(alpha, seqLength);
 
     ComputeBeta(data, seqLength);
-    //  cout << "Beta\n";
-    // PrintMatrix(beta, seqLength);
+    cout << "Beta\n";
+    PrintMatrix(beta, seqLength);
 
     // compute data likelihood
     double prData =0;
@@ -623,6 +764,13 @@ double Model::UpdateHMM(int *data, int seqLength)
     AccumulateCounts(data, seqLength);
 
     UpdateParameter();
+
+    cout << "============================" << endl;
+    cout << "Transition matrix\n";
+    PrintMatrix(A, N);
+    cout << "Output matrix\n";
+    PrintOutputMatrix();
+    cout << "============================" << endl;
 
 
     return (prData);
