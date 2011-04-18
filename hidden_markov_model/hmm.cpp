@@ -338,7 +338,7 @@ void Model::Decode(char *seqFile) {
     }
 
     while (seq >> c) {
-    // int cIndex = c- baseChar;
+        int cIndex = c- baseChar;
     // use cIndex to access matrix B, e.g., B[cIndex][i] gives you
     // the probability of generating symbol c from state i
 
@@ -367,7 +367,39 @@ void Model::Decode(char *seqFile) {
     // still need the probability for the old path (stored in the field pr)
     // in order to compute the new probabilities for their new best paths.
     // Remember to work on the logarithm domain to avoid overflow.
+    
 
+        for (int i=0; i < N; i++) {
+
+            double max = LZERO;
+            double max_ind = -1; 
+            double temp = LZERO;
+
+            for (int j=0; j < N; j++) {
+                temp = trellis[j].pr + log(A[j][i])
+                        + log(B[cIndex][i]);
+
+                if(!isnormal(temp)){
+                        temp = LZERO;
+                }
+
+                if (temp > max) {
+                    max = temp;
+                    max_ind = j;
+                }
+            }
+
+            // we find the new max and max_index
+            trellis[i].newPr = max;
+            trellis[i].path.push_back(max_ind);
+
+        }
+
+        // change the pr to the new Pr
+        for (int i=0; i < N; i++) {
+            trellis[i].pr = trellis[i].newPr;
+            trellis[i].newPr = -1;
+        }
     }
 
     seq.clear();
