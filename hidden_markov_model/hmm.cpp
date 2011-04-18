@@ -173,15 +173,37 @@ void Model::CountSequence(char *seqFile)
   // It's important that you transform the character to the corresponding true
   // index by subtracting the "basechar" as shown below!
   //
-  //   char c;
-  //  while (ifs >> c >> s) {
-  //       int trueIndex = c-baseChar;
+    char c;
+    int s;
+    int prev_s;
+
+    //starting state has not transition 
+    ifs >> c >> s;
+    ICounter[s]++;
+    INorm++;
+
+    BCounter[c-baseChar][s]++;
+    BNorm[s]++;
+
+    prev_s = s;
+
+    while (ifs >> c >> s) {
+        int trueIndex = c-baseChar;
   //        Now you can use something like B[trueIndex][i] to refer
   //        to the entry in B.
-  //
   //     ======= Do your counting here...
   //     e.g.,   change ICounter, INorm, ACounter, ANorm, etc
-  //   }
+  //
+        
+        ACounter[prev_s][s]++;
+        ANorm[prev_s]++;
+
+        BCounter[trueIndex][s]++;
+        BNorm[s]++;
+
+        prev_s = s;
+
+    }
 }
 
 void Model::RandomInit(int *sym, int seqLen)
