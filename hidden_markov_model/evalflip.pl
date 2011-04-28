@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
 if ($#ARGV <1) {
     die "Usage: $0 tagfile resultfile\n";

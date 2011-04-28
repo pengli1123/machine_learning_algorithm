@@ -745,12 +745,12 @@ double Model::UpdateHMM(int *data, int seqLength)
     PrintOutputMatrix();
 
     ComputeAlpha(data, seqLength);
-    cout << "Alpha\n";
-    PrintMatrix(alpha, seqLength);
+    //cout << "Alpha\n";
+    //PrintMatrix(alpha, seqLength);
 
     ComputeBeta(data, seqLength);
-    cout << "Beta\n";
-    PrintMatrix(beta, seqLength);
+    //cout << "Beta\n";
+    //PrintMatrix(beta, seqLength);
 
     // compute data likelihood
     double prData =0;
@@ -764,14 +764,6 @@ double Model::UpdateHMM(int *data, int seqLength)
     AccumulateCounts(data, seqLength);
 
     UpdateParameter();
-
-    cout << "============================" << endl;
-    cout << "Transition matrix\n";
-    PrintMatrix(A, N);
-    cout << "Output matrix\n";
-    PrintOutputMatrix();
-    cout << "============================" << endl;
-
 
     return (prData);
 }
